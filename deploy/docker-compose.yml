@@ -8,12 +8,12 @@ services:
     expose:
       - "3001"
     environment:
-      - ASTRO_VAULT_KEY=${ASTRO_VAULT_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
       - LAUNCHER_KEY=${LAUNCHER_KEY}
       - NODE_ENV=production
       - PORT=3001
     volumes:
-      - vault-data:/app/config/vault:ro
       - astro-minecraft:/app/minecraft
     networks:
       - astro-net
@@ -60,12 +60,6 @@ services:
         max-file: "2"
 
 volumes:
-  vault-data:
-    driver: local
-    driver_opts:
-      type: none
-      device: /opt/astro/vault
-      o: bind
   astro-minecraft:
   certbot-www:
   certbot-certs:

@@ -1,22 +1,6 @@
 # Deploy Astro Launcher przez Portainer
 
-## Wymagania wstępne (na serwerze)
-
-```bash
-# 1. Utwórz katalog na vault
-mkdir -p /opt/astro/vault
-
-# 2. Skopiuj plik credentials.vault
-#    (wygenerowany lokalnie przez npm run vault:create)
-#    Wrzuć go do /opt/astro/vault/credentials.vault
-
-# 3. Zainstaluj Docker + Portainer (jeśli nie masz)
-#    Portainer: https://docs.portainer.io/start/install/server/docker
-```
-
 ## Stack w Portainer
-
-### Krok 1: Dodaj stack
 
 1. Portainer → **Stacks** → **Add stack**
 2. Name: `astro-launcher`
@@ -25,66 +9,40 @@ mkdir -p /opt/astro/vault
 5. Repository reference: `main`
 6. Compose path: `deploy/docker-compose.yml`
 
-### Krok 2: Zmienne środowiskowe
+### Zmienne środowiskowe (ustaw w Portainer)
 
 | Zmienna | Wartość |
 |---------|---------|
-| `ASTRO_VAULT_KEY` | Twoje hasło master do vaulta |
-| `LAUNCHER_KEY` | (opcjonalnie, nadpisuje klucz z vaulta) |
+| `DATABASE_URL` | `postgresql://astrolauncher:AsTr0_mOrIsAsTr0.pl@57.128.239.39:54235/astrolauncher` |
+| `JWT_SECRET` | `4851b11bb4eaa4bf266a446d939997196d6697851e88bbd6bf50422e0c07c29068747a8944a26b214e4b2d936bf34611` |
+| `LAUNCHER_KEY` | `583582787f59a73a972be0367615f0fbcd1fc1569b893529bb710ebe25659a7d` |
 
-Ustaw je w sekcji **Environment variables** w Portainer.
+### Deploy
 
-### Krok 3: Zaawansowane (volumes)
-
-Portainer sam stworzy bind mount dla vaulta. Upewnij się że:
-- `/opt/astro/vault/credentials.vault` istnieje na serwerze
-- Ma odpowiednie permisje (`chmod 600`)
-
-### Krok 4: Deploy
-
-Kliknij **Deploy the stack**. Portainer:
-1. Sklonuje repo z GitHuba
-2. Zbuduje obraz API z Dockerfile
-3. Uruchomi: api + nginx + certbot
+Kliknij **Deploy the stack**.
 
 ## SSL — pierwsze uruchomienie
 
-Po deploy, certbot będzie czekał. Musisz ręcznie wydać pierwszy certyfikat:
+Po deploy otwórz Portainer → **Containers** → kliknij `astro-certbot` → **Exec console** i wpisz:
 
 ```bash
-# Wejdź do kontenera certbot
-docker exec -it astro-certbot /bin/sh
-
-# Wewnątrz kontenera:
-certbot certonly --webroot -w /var/www/certbot \
-  -d api.morisastro.pl \
-  --email admin@morisastro.pl \
-  --agree-tos --non-interactive
+certbot certonly --webroot -w /var/www/certbot -d api.morisastro.pl --email admin@morisastro.pl --agree-tos --non-interactive
 ```
 
-Po uzyskaniu certyfikatu:
+Potem zrestartuj nginx:
 ```bash
-# Restart nginx
 docker restart astro-nginx
 ```
 
-Certbot będzie potem automatycznie odnawiał certyfikat co 12h.
+Certbot będzie odnawiał certyfikat automatycznie co 12h.
 
 ## Sprawdzenie
 
 ```bash
 curl https://api.morisastro.pl/api/health
-# → {"status":"ok","database":"connected","version":"1.0.0"}
 ```
 
 ## Troubleshooting
 
-**Vault not found:**
-Upewnij się że `/opt/astro/vault/credentials.vault` istnieje przed deploy.
-
-**SSL not working:**
-Sprawdź czy certyfikat został wygenerowany:
-`docker exec astro-certbot certbot certificates`
-
 **API not reachable:**
-Sprawdź logi: Portainer → Containers → astro-api → Logs
+Portainer → Containers → astro-api → Logs
