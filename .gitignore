@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.vault
+config/vault/*.vault
+!config/vault/.gitkeep
+.DS_Store
+*.log

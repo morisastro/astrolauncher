@@ -1,0 +1,35 @@
+services:
+  api:
+    build:
+      context: ../packages/backend
+      dockerfile: Dockerfile
+    container_name: astro-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      - ASTRO_VAULT_KEY=${ASTRO_VAULT_KEY}
+      - LAUNCHER_KEY=${LAUNCHER_KEY}
+      - NODE_ENV=production
+      - PORT=3001
+    volumes:
+      - ../config/vault:/app/config/vault:ro
+      - astro-minecraft:/app/minecraft
+      - astro-updates:/app/config
+
+  nginx:
+    image: nginx:alpine
+    container_name: astro-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+
+volumes:
+  astro-minecraft:
+  astro-updates:

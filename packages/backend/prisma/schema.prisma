@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MOD
+  ADMIN
+  OWNER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  rankId    String?
+  rank      Rank?    @relation(fields: [rankId], references: [id])
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  orders   Order[]
+  news     News[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Rank {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  displayName String
+  color     String   @default("#ffffff")
+  icon      String?
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  users     User[]
+  products  Product[]
+}
+
+model News {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  imageUrl  String?
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MinecraftVersion {
+  id         String @id
+  name       String @unique
+  type       String
+  releaseUrl String
+  isInstalled Boolean @default(false)
+  installedPath String?
+  createdAt  DateTime @default(now())
+}
+
+model Mod {
+  id           String   @id
+  name         String
+  description  String?
+  logoUrl      String?
+  source       String
+  versions     Json?
+  minecraftVersions String[]
+  downloadUrl  String?
+  installed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Modpack {
+  id           String   @id
+  name         String
+  description  String?
+  logoUrl      String?
+  mods         Json?
+  version      String
+  minecraftVersion String
+  installed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  rankId      String?
+  rank        Rank?    @relation(fields: [rankId], references: [id])
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  orders      Order[]
+}
+
+model Order {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+}
