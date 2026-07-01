@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ../packages/backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: packages/backend/Dockerfile
     container_name: astro-api
     restart: unless-stopped
     expose:
