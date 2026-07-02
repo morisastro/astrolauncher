@@ -5,7 +5,7 @@ import { getLauncherKey } from './keychain.js';
 import { checkForUpdates, downloadUpdate, type UpdateInfo } from './updater.js';
 
 const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
-const API_URL = process.env.API_URL || 'http://57.128.239.39:3001';
+const API_URL = process.env.API_URL || 'http://api.morisastro.pl:3001';
 
 let mainWindow: BrowserWindow | null = null;
 let mcProcess: MinecraftProcess | null = null;
