@@ -264,3 +264,96 @@ export class MinecraftProcess {
     return this.process !== null;
   }
 }
+
+const MODRINTH_API = 'https://api.modrinth.com/v2';
+
+export async function getModsDir(mcVersion: string): Promise<string> {
+  const mcDir = process.env.MC_DIR || join(process.env.APPDATA || '.', '.astro-launcher', 'minecraft');
+  const modsDir = join(mcDir, 'mods');
+  if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true });
+  return modsDir;
+}
+
+export async function searchMods(query: string, limit: number = 20, loader?: string, mcVersion?: string): Promise<any[]> {
+  const params = new URLSearchParams({
+    query,
+    limit: String(limit),
+    facets: JSON.stringify([['project_type:mod']]),
+  });
+  if (loader) {
+    params.set('facets', JSON.stringify([['project_type:mod'], [`loaders:${loader}`]]));
+  }
+  if (mcVersion) {
+    params.set('facets', JSON.stringify([['project_type:mod'], [`versions:${mcVersion}`]]));
+  }
+
+  const resp = await fetch(`${MODRINTH_API}/search?${params}`, {
+    headers: { 'User-Agent': 'AstroLauncher/1.0' },
+  });
+  if (!resp.ok) throw new Error('Modrinth search failed');
+  const data = await resp.json();
+  return data.hits.map((hit: any) => ({
+    id: hit.project_id,
+    name: hit.title,
+    description: hit.description,
+    logoUrl: hit.icon_url,
+    source: 'modrinth',
+    minecraftVersions: hit.versions || [],
+    downloads: hit.downloads || 0,
+    author: hit.author || '',
+  }));
+}
+
+export async function getModVersions(modId: string): Promise<any[]> {
+  const resp = await fetch(`${MODRINTH_API}/project/${modId}/version`, {
+    headers: { 'User-Agent': 'AstroLauncher/1.0' },
+  });
+  if (!resp.ok) throw new Error('Failed to fetch mod versions');
+  return resp.json();
+}
+
+export async function downloadMod(modId: string, versionId: string, onProgress?: (pct: number, msg: string) => void): Promise<string> {
+  const modsDir = await getModsDir('');
+
+  if (onProgress) onProgress(0, 'Fetching mod info...');
+  const versions = await getModVersions(modId);
+  const version = versions.find((v: any) => v.id === versionId) || versions[0];
+  if (!version) throw new Error('No version found');
+
+  const file = version.files?.[0];
+  if (!file) throw new Error('No file available');
+
+  if (onProgress) onProgress(20, `Downloading ${file.filename}...`);
+  const destPath = join(modsDir, file.filename);
+
+  const resp = await fetch(file.url);
+  if (!resp.ok || !resp.body) throw new Error('Download failed');
+
+  const contentLength = resp.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  let downloaded = 0;
+
+  const reader = resp.body.getReader();
+  const writer = createWriteStream(destPath);
+
+  const pump = async () => {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { writer.end(); break; }
+      writer.write(Buffer.from(value));
+      downloaded += value.length;
+      if (total && onProgress) {
+        onProgress(20 + Math.round((downloaded / total) * 70), `Downloading... ${Math.round((downloaded / total) * 100)}%`);
+      }
+    }
+  };
+
+  await pump();
+  await new Promise<void>((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+  });
+
+  if (onProgress) onProgress(100, `Installed: ${file.filename}`);
+  return destPath;
+}

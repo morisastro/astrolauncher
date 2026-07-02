@@ -21,6 +21,13 @@ interface AstroUpdate {
   onProgress: (cb: (pct: number) => void) => void;
 }
 
+interface AstroMod {
+  search: (query: string, limit?: number, loader?: string, mcVersion?: string) => Promise<any[]>;
+  versions: (modId: string) => Promise<any[]>;
+  download: (modId: string, versionId: string) => Promise<string>;
+  onProgress: (cb: (data: { pct: number; msg: string }) => void) => void;
+}
+
 interface Window {
   astro: {
     getApiUrl: () => Promise<string>;
@@ -30,5 +37,6 @@ interface Window {
     app: AstroApp;
     mc: AstroMc;
     update: AstroUpdate;
+    mod: AstroMod;
   };
 }

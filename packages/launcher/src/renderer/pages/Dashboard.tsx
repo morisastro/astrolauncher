@@ -25,6 +25,8 @@ interface ModItem {
   id: string; name: string; description: string;
   logoUrl: string | null; source: string;
   minecraftVersions: string[];
+  downloads?: number;
+  author?: string;
 }
 
 function VersionCard({ v, onDownload, onLaunch, downloading, launching }:
@@ -139,6 +141,7 @@ export function DashboardPage() {
       setMcLog(prev => [...prev, `[EXIT] Process exited with code ${code}`]);
       setLaunching(null);
     });
+    window.astro.mod.onProgress((data) => setMcProgress(data));
   }
 
   async function loadVersions() {
@@ -179,26 +182,22 @@ export function DashboardPage() {
   async function searchMods() {
     if (!modQuery.trim()) return;
     try {
-      let path = `/mods/search?q=${encodeURIComponent(modQuery)}&limit=30`;
-      if (modLoader) path += `&loader=${encodeURIComponent(modLoader)}`;
-      const results = await apiGet(path);
+      const results = await window.astro.mod.search(modQuery, 30, modLoader || undefined);
       setMods(results);
-    } catch {}
+    } catch (err: any) {
+      setMods([]);
+    }
   }
 
   async function handleInstallMod(modId: string) {
     setInstallingMod(modId);
+    setMcProgress(null);
     try {
-      const resp = await apiGet(`/mods/${modId}`);
-      const version = resp.versions?.[0];
+      const versions = await window.astro.mod.versions(modId);
+      const version = versions[0];
       if (!version) { alert('No version available'); return; }
-      const dl = await apiGet(`/mods/${modId}/${version.id}/download-url`);
-      if (dl?.url) {
-        const a = document.createElement('a');
-        a.href = dl.url;
-        a.download = dl.filename || 'mod.jar';
-        a.click();
-      }
+      const path = await window.astro.mod.download(modId, version.id);
+      setMcLog(prev => [...prev, `[MOD] Installed to: ${path}`]);
     } catch (err: any) {
       alert('Failed: ' + err.message);
     } finally { setInstallingMod(null); }

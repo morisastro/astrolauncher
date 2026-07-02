@@ -1,23 +1,26 @@
 let cachedUrl: string | null = null;
 let cachedKey: string | null = null;
 
+const FALLBACK_URL = 'http://api.morisastro.pl:3001';
+
 async function getBaseUrl(): Promise<string> {
   if (cachedUrl) return cachedUrl;
-  if (window.astro) {
-    cachedUrl = await window.astro.getApiUrl();
-  } else {
-    cachedUrl = 'http://localhost:3001';
-  }
+  try {
+    if (window.astro) {
+      cachedUrl = await window.astro.getApiUrl();
+    }
+  } catch {}
+  if (!cachedUrl) cachedUrl = FALLBACK_URL;
   return cachedUrl;
 }
 
 async function getKey(): Promise<string | null> {
   if (cachedKey !== null) return cachedKey;
-  if (window.astro) {
-    cachedKey = await window.astro.getLauncherKey();
-  } else {
-    cachedKey = null;
-  }
+  try {
+    if (window.astro) {
+      cachedKey = await window.astro.getLauncherKey();
+    }
+  } catch {}
   return cachedKey;
 }
 

@@ -1,14 +1,14 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
-import { join } from 'node:path';
-import { MinecraftProcess } from './minecraft.js';
-import { getLauncherKey } from './keychain.js';
-import { checkForUpdates, downloadUpdate, type UpdateInfo } from './updater.js';
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { join } = require('node:path');
+const { MinecraftProcess, searchMods, getModVersions, downloadMod } = require('./minecraft');
+const { getLauncherKey } = require('./keychain');
+const { checkForUpdates, downloadUpdate } = require('./updater');
 
-const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
+const isDev = !app.isPackaged;
 const API_URL = process.env.API_URL || 'http://api.morisastro.pl:3001';
 
-let mainWindow: BrowserWindow | null = null;
-let mcProcess: MinecraftProcess | null = null;
+let mainWindow = null;
+let mcProcess = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,9 +19,10 @@ function createWindow() {
     title: 'Astro Launcher',
     backgroundColor: '#0d1117',
     webPreferences: {
-      preload: join(import.meta.dirname, '..', 'preload', 'index.js'),
+      preload: join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
 
@@ -29,7 +30,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(join(import.meta.dirname, '..', 'renderer', 'index.html'));
+    mainWindow.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
   }
 }
 
@@ -41,7 +42,7 @@ app.whenReady().then(() => {
   ipcMain.handle('get-mc-dir', () => process.env.MC_DIR || join(process.env.APPDATA || '.', '.astro-launcher', 'minecraft'));
   ipcMain.handle('get-platform', () => process.platform);
 
-  ipcMain.handle('mc:download', async (_event, versionName: string) => {
+  ipcMain.handle('mc:download', async (_event, versionName) => {
     mcProcess = new MinecraftProcess();
     mcProcess.onProgress = (msg, pct) => {
       mainWindow?.webContents.send('mc:progress', { msg, pct });
@@ -50,7 +51,7 @@ app.whenReady().then(() => {
     return true;
   });
 
-  ipcMain.handle('mc:launch', async (_event, versionName: string, javaPath?: string) => {
+  ipcMain.handle('mc:launch', async (_event, versionName, javaPath) => {
     if (!mcProcess) mcProcess = new MinecraftProcess();
     mcProcess.onOutput = (line) => mainWindow?.webContents.send('mc:output', line);
     mcProcess.onError = (line) => mainWindow?.webContents.send('mc:error', line);
@@ -70,11 +71,11 @@ app.whenReady().then(() => {
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:quit', () => app.quit());
 
-  ipcMain.handle('update:check', async (): Promise<UpdateInfo> => {
+  ipcMain.handle('update:check', async () => {
     return checkForUpdates();
   });
 
-  ipcMain.handle('update:download', async (_event, url: string) => {
+  ipcMain.handle('update:download', async (_event, url) => {
     const mainWin = mainWindow;
     const path = await downloadUpdate(url, (pct) => {
       mainWin?.webContents.send('update:progress', pct);
@@ -82,10 +83,25 @@ app.whenReady().then(() => {
     return path;
   });
 
-  ipcMain.handle('update:install', async (_event, path: string) => {
+  ipcMain.handle('update:install', async (_event, path) => {
     shell.openPath(path);
     app.quit();
     return true;
+  });
+
+  ipcMain.handle('mod:search', async (_event, query, limit, loader, mcVersion) => {
+    return searchMods(query, limit || 20, loader, mcVersion);
+  });
+
+  ipcMain.handle('mod:versions', async (_event, modId) => {
+    return getModVersions(modId);
+  });
+
+  ipcMain.handle('mod:download', async (event, modId, versionId) => {
+    const path = await downloadMod(modId, versionId, (pct, msg) => {
+      event.sender.send('mod:progress', { pct, msg });
+    });
+    return path;
   });
 
   app.on('activate', () => {

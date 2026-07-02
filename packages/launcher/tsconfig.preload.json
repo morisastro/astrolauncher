@@ -5,10 +5,10 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "strict": false,
-    "outDir": "dist/main",
-    "rootDir": "src/main",
+    "outDir": "dist/preload",
+    "rootDir": "src/preload",
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "include": ["src/main/**/*"]
+  "include": ["src/preload/**/*"]
 }
