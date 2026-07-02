@@ -185,3 +185,49 @@ body {
 .mod-desc { font-size: 12px; color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mod-versions { font-size: 11px; color: #484f58; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.quick-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.quick-tile {
+  background: #161b22; border: 1px solid #30363d; border-left: 4px solid #58a6ff;
+  border-radius: 8px; padding: 16px; cursor: pointer; display: flex; align-items: center;
+  gap: 12px; transition: all 0.15s;
+}
+.quick-tile:hover { background: #1c2128; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.tile-icon { font-size: 28px; }
+.tile-info { display: flex; flex-direction: column; gap: 2px; }
+.tile-title { font-weight: 600; font-size: 14px; }
+.tile-subtitle { font-size: 11px; color: #8b949e; }
+
+.discord-banner {
+  margin-top: 12px; background: #5865f2; border-radius: 8px; padding: 10px 12px;
+  cursor: pointer; text-align: center; transition: background 0.15s;
+}
+.discord-banner:hover { background: #4752c4; }
+.discord-banner span { display: block; color: #fff; font-weight: 600; font-size: 13px; }
+.discord-banner small { color: #ffffffaa; font-size: 10px; }
+
+.builtin-mod-card {
+  background: #161b22; border: 1px solid #30363d; border-left: 4px solid #d29922;
+  border-radius: 8px; padding: 16px; margin-bottom: 24px;
+}
+.builtin-mod-header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.builtin-mod-name { font-weight: 700; font-size: 16px; color: #d29922; }
+.builtin-mod-desc { font-size: 13px; color: #8b949e; }
+.builtin-features { display: flex; flex-wrap: wrap; gap: 8px; }
+.feature-chip {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+  padding: 6px 12px; display: flex; align-items: center; gap: 6px;
+}
+.feature-name { font-size: 12px; font-weight: 600; }
+.feature-hotkey { font-size: 10px; color: #8b949e; background: #21262d; padding: 2px 6px; border-radius: 4px; }
+
+.account-card {
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 24px;
+  display: flex; flex-direction: column; gap: 16px; align-items: flex-start;
+}
+.mc-profile-display { display: flex; align-items: center; gap: 12px; }
+.mc-avatar { width: 64px; height: 64px; border-radius: 8px; }
+.mc-profile-bar {
+  background: #0d1117; border: 1px solid #3fb950; border-radius: 8px; padding: 8px 12px;
+  margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px;
+}

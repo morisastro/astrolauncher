@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { join } = require('node:path');
-const { MinecraftProcess, searchMods, getModVersions, downloadMod } = require('./minecraft');
+const { MinecraftProcess, searchMods, getModVersions, downloadMod, getBuiltinMods, installBuiltinMod } = require('./minecraft');
 const { getLauncherKey } = require('./keychain');
 const { checkForUpdates, downloadUpdate } = require('./updater');
+const { setupAuthIpc } = require('./auth');
 
 const isDev = !app.isPackaged;
 const API_URL = process.env.API_URL || 'http://api.morisastro.pl:3001';
@@ -36,6 +37,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  setupAuthIpc();
 
   ipcMain.handle('get-api-url', () => API_URL);
   ipcMain.handle('get-launcher-key', () => getLauncherKey());
@@ -51,12 +53,12 @@ app.whenReady().then(() => {
     return true;
   });
 
-  ipcMain.handle('mc:launch', async (_event, versionName, javaPath) => {
+  ipcMain.handle('mc:launch', async (_event, versionName, javaPath, mcProfile) => {
     if (!mcProcess) mcProcess = new MinecraftProcess();
     mcProcess.onOutput = (line) => mainWindow?.webContents.send('mc:output', line);
     mcProcess.onError = (line) => mainWindow?.webContents.send('mc:error', line);
     mcProcess.onExit = (code) => mainWindow?.webContents.send('mc:exit', code);
-    await mcProcess.launch(versionName, javaPath);
+    await mcProcess.launch(versionName, javaPath, mcProfile);
     return true;
   });
 
@@ -102,6 +104,14 @@ app.whenReady().then(() => {
       event.sender.send('mod:progress', { pct, msg });
     });
     return path;
+  });
+
+  ipcMain.handle('mod:builtin', async () => {
+    return getBuiltinMods();
+  });
+
+  ipcMain.handle('mod:install-builtin', async (_event, mcVersion) => {
+    return installBuiltinMod(mcVersion);
   });
 
   app.on('activate', () => {

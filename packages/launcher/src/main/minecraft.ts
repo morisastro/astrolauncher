@@ -151,7 +151,7 @@ export class MinecraftProcess {
     if (onProgress) onProgress(`Ready to launch!`, 100);
   }
 
-  async launch(versionName: string, javaPath?: string, username?: string, jvmArgs?: string[]) {
+  async launch(versionName: string, javaPath?: string, mcProfile?: { uuid: string; username: string; mcToken: string }, jvmArgs?: string[]) {
     const versionDir = join(MC_DIR, 'versions', versionName);
     const vJsonPath = join(versionDir, `${versionName}.json`);
     if (!existsSync(vJsonPath)) throw new Error(`Version ${versionName} not downloaded`);
@@ -162,6 +162,10 @@ export class MinecraftProcess {
     const libsDir = join(MC_DIR, 'libraries');
     const nativesDir = join(versionDir, 'natives');
     const assetsDir = join(MC_DIR, 'assets');
+
+    const username = mcProfile?.username || 'Player';
+    const uuid = mcProfile?.uuid || '00000000-0000-0000-0000-000000000000';
+    const accessToken = mcProfile?.mcToken || '0';
 
     const classpath: string[] = [];
     const osName = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'osx' : 'linux';
@@ -203,14 +207,31 @@ export class MinecraftProcess {
     const rawArgs = vJson.arguments?.game || [];
     for (const arg of rawArgs) {
       if (typeof arg === 'string') {
-        gameArgs.push(arg.replace('${auth_player_name}', username || 'Player')
+        gameArgs.push(arg.replace('${auth_player_name}', username)
           .replace('${version_name}', versionName)
           .replace('${game_directory}', MC_DIR)
           .replace('${assets_root}', assetsDir)
           .replace('${assets_index_name}', vJson.assetIndex.id)
-          .replace('${auth_uuid}', '00000000-0000-0000-0000-000000000000')
-          .replace('${auth_access_token}', '0')
-          .replace('${user_type}', 'mojang')
+          .replace('${auth_uuid}', uuid)
+          .replace('${auth_access_token}', accessToken)
+          .replace('${user_type}', 'msa')
+          .replace('${version_type}', vJson.type)
+          .replace('${user_properties}', '{}'));
+      }
+    }
+
+    // Old format (pre 1.13)
+    if (vJson.minecraftArguments) {
+      const oldArgs = vJson.minecraftArguments.split(' ');
+      for (const arg of oldArgs) {
+        gameArgs.push(arg.replace('${auth_player_name}', username)
+          .replace('${version_name}', versionName)
+          .replace('${game_directory}', MC_DIR)
+          .replace('${assets_root}', assetsDir)
+          .replace('${assets_index_name}', vJson.assetIndex.id)
+          .replace('${auth_uuid}', uuid)
+          .replace('${auth_access_token}', accessToken)
+          .replace('${user_type}', 'msa')
           .replace('${version_type}', vJson.type)
           .replace('${user_properties}', '{}'));
       }
@@ -266,6 +287,47 @@ export class MinecraftProcess {
 }
 
 const MODRINTH_API = 'https://api.modrinth.com/v2';
+
+const BUILTIN_MODS_DIR = process.env.NODE_ENV === 'production'
+  ? join(process.resourcesPath || process.cwd(), 'assets', 'builtin-mods')
+  : join(__dirname, '..', '..', 'assets', 'builtin-mods');
+
+export function getBuiltinMods() {
+  try {
+    const manifestPath = join(BUILTIN_MODS_DIR, 'astro-client.json');
+    if (!existsSync(manifestPath)) return null;
+    return JSON.parse(readFileSync(manifestPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+export function installBuiltinMod(mcVersion: string): string | null {
+  try {
+    const manifest = getBuiltinMods();
+    if (!manifest) return null;
+
+    const mcDir = process.env.MC_DIR || join(process.env.APPDATA || '.', '.astro-launcher', 'minecraft');
+    const modsDir = join(mcDir, 'mods');
+    if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true });
+
+    // Kopiuj plik moda (symulacja — w produkcyjnej wersji byłby prawdziwy JAR)
+    const modJarPath = join(BUILTIN_MODS_DIR, 'astro-client.jar');
+    const destPath = join(modsDir, `astro-client-${mcVersion}.jar`);
+
+    if (existsSync(modJarPath)) {
+      const data = readFileSync(modJarPath);
+      writeFileSync(destPath, data);
+      return destPath;
+    }
+
+    // Jeśli nie ma JARa, zapisz manifest jako marker
+    writeFileSync(join(modsDir, 'astro-client.marker'), JSON.stringify(manifest, null, 2));
+    return join(modsDir, 'astro-client.marker');
+  } catch {
+    return null;
+  }
+}
 
 export async function getModsDir(mcVersion: string): Promise<string> {
   const mcDir = process.env.MC_DIR || join(process.env.APPDATA || '.', '.astro-launcher', 'minecraft');

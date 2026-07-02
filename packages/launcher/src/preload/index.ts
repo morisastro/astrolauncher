@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, shell } = require('electron');
 
 contextBridge.exposeInMainWorld('astro', {
   getApiUrl: () => ipcRenderer.invoke('get-api-url'),
@@ -21,8 +21,9 @@ contextBridge.exposeInMainWorld('astro', {
   },
 
   mc: {
+    login: () => ipcRenderer.invoke('mc:login'),
     download: (version) => ipcRenderer.invoke('mc:download', version),
-    launch: (version, javaPath) => ipcRenderer.invoke('mc:launch', version, javaPath),
+    launch: (version, javaPath, mcProfile) => ipcRenderer.invoke('mc:launch', version, javaPath, mcProfile),
     kill: () => ipcRenderer.invoke('mc:kill'),
     status: () => ipcRenderer.invoke('mc:status'),
     onProgress: (cb) => {
@@ -43,8 +44,14 @@ contextBridge.exposeInMainWorld('astro', {
     search: (query, limit, loader, mcVersion) => ipcRenderer.invoke('mod:search', query, limit, loader, mcVersion),
     versions: (modId) => ipcRenderer.invoke('mod:versions', modId),
     download: (modId, versionId) => ipcRenderer.invoke('mod:download', modId, versionId),
+    builtin: () => ipcRenderer.invoke('mod:builtin'),
+    installBuiltin: (mcVersion) => ipcRenderer.invoke('mod:install-builtin', mcVersion),
     onProgress: (cb) => {
       ipcRenderer.on('mod:progress', (_e, data) => cb(data));
     },
+  },
+
+  discord: {
+    openInvite: () => shell.openExternal('https://dc.morisastro.pl'),
   },
 });
