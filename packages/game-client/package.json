@@ -1,0 +1,27 @@
+{
+  "name": "@astro/game-client",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "set NODE_ENV=dev&& electron .",
+    "build": "electron-builder --win",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mayday.survival",
+    "productName": "Mayday Survival",
+    "files": ["src/**/*", "assets/**/*", "node_modules/three/**/*"],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    }
+  }
+}

@@ -29,6 +29,7 @@ model User {
   sessions Session[]
   orders   Order[]
   news     News[]
+  servers  GameServer[]
 }
 
 model Session {
@@ -120,4 +121,21 @@ model Order {
   product    Product  @relation(fields: [productId], references: [id])
   status     String   @default("pending")
   createdAt  DateTime @default(now())
+}
+
+model GameServer {
+  id          String   @id @default(uuid())
+  name        String
+  host        String
+  port        Int
+  region      String   @default("eu")
+  maxPlayers  Int      @default(5)
+  currentPlayers Int   @default(0)
+  day         Int      @default(1)
+  status      String   @default("online")
+  password    String?
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

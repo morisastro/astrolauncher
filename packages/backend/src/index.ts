@@ -10,6 +10,7 @@ import { createRankRouter } from './routes/ranks.js';
 import { createVersionRouter } from './routes/versions.js';
 import { createModRouter } from './routes/mods.js';
 import { createUpdateRouter } from './routes/update.js';
+import { createServerBrowserRouter } from './routes/servers.js';
 import { authMiddleware, adminOnly } from './middleware/auth.js';
 import { launcherKeyMiddleware } from './middleware/launcher-key.js';
 
@@ -40,6 +41,7 @@ app.use('/api/ranks', launcherAuth, createRankRouter(prisma, config.jwtSecret));
 app.use('/api/versions', launcherAuth, createVersionRouter(prisma, config.jwtSecret));
 app.use('/api/mods', launcherAuth, createModRouter(prisma, config.jwtSecret));
 app.use('/api/update', createUpdateRouter());
+app.use('/api/servers', launcherAuth, createServerBrowserRouter(prisma, config.jwtSecret));
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 app.listen(PORT, '0.0.0.0', () => {

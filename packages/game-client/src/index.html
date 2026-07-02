@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mayday Survival</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; }
+    #game-canvas { display: block; }
+    
+    #login-screen, #server-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    }
+    .logo { font-size: 42px; font-weight: 900; color: #e74c3c; margin-bottom: 8px; text-shadow: 0 0 20px rgba(231,76,60,0.5); letter-spacing: 2px; }
+    .subtitle { font-size: 14px; color: #8b949e; margin-bottom: 32px; }
+    .form-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 32px; width: 360px; }
+    .form-card input {
+      width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      padding: 12px 16px; color: #c9d1d9; font-size: 14px; margin-bottom: 12px; outline: none;
+    }
+    .form-card input:focus { border-color: #e74c3c; }
+    .btn {
+      width: 100%; background: #e74c3c; color: #fff; border: none; border-radius: 8px;
+      padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s;
+    }
+    .btn:hover { background: #c0392b; }
+    .btn-secondary { background: #21262d; border: 1px solid #30363d; margin-top: 8px; }
+    .btn-secondary:hover { background: #30363d; }
+    .error { color: #f85149; font-size: 13px; text-align: center; margin-bottom: 8px; }
+    
+    #server-list { width: 600px; }
+    .server-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 16px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .server-card:hover { border-color: #e74c3c; background: #1c2128; }
+    .server-info { display: flex; flex-direction: column; gap: 4px; }
+    .server-name { font-weight: 700; font-size: 16px; }
+    .server-meta { font-size: 12px; color: #8b949e; }
+    .server-players { text-align: right; }
+    .server-day { font-size: 11px; color: #d29922; }
+    
+    #hud {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; display: none;
+    }
+    #stats { position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 6px; }
+    .stat-bar { display: flex; align-items: center; gap: 8px; }
+    .stat-label { font-size: 12px; width: 50px; color: #8b949e; }
+    .stat-track { width: 200px; height: 12px; background: #21262d; border-radius: 6px; overflow: hidden; }
+    .stat-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+    .hp-fill { background: #e74c3c; }
+    .hunger-fill { background: #f39c12; }
+    .stamina-fill { background: #2ecc71; }
+    .temp-fill { background: #3498db; }
+    
+    #day-info { position: absolute; top: 20px; right: 20px; text-align: right; }
+    #day-num { font-size: 24px; font-weight: 900; color: #f0f6fc; }
+    #time-label { font-size: 12px; color: #8b949e; }
+    
+    #hotbar { position: absolute; bottom: 20px; right: 20px; display: flex; gap: 4px; }
+    .slot {
+      width: 50px; height: 50px; background: rgba(22,27,34,0.9); border: 2px solid #30363d;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: #8b949e; pointer-events: auto; cursor: pointer;
+    }
+    .slot.active { border-color: #e74c3c; }
+    .slot .qty { position: absolute; bottom: 2px; right: 4px; font-size: 10px; color: #f0f6fc; }
+    
+    #crosshair {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 20px; height: 20px; pointer-events: none;
+    }
+    #crosshair::before, #crosshair::after {
+      content: ''; position: absolute; background: rgba(255,255,255,0.6);
+    }
+    #crosshair::before { width: 2px; height: 20px; left: 9px; }
+    #crosshair::after { width: 20px; height: 2px; top: 9px; }
+    
+    #chat {
+      position: absolute; bottom: 80px; left: 20px; width: 400px;
+      pointer-events: none;
+    }
+    #chat-messages { max-height: 200px; overflow-y: auto; }
+    .chat-msg { font-size: 12px; color: #c9d1d9; margin-bottom: 2px; text-shadow: 1px 1px 2px #000; }
+    .chat-msg .username { font-weight: 700; }
+    #chat-input {
+      width: 100%; background: rgba(13,17,23,0.8); border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px; color: #c9d1d9; font-size: 13px; outline: none; pointer-events: auto;
+      display: none;
+    }
+    
+    #crafting-menu {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(13,17,23,0.95); border: 1px solid #30363d; border-radius: 12px;
+      padding: 24px; width: 500px; pointer-events: auto; display: none;
+    }
+    #crafting-menu h2 { font-size: 18px; margin-bottom: 16px; color: #e74c3c; }
+    .craft-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px;
+    }
+    .craft-item:hover { background: #21262d; }
+    .craft-name { font-size: 14px; }
+    .craft-cost { font-size: 11px; color: #8b949e; }
+    
+    #intro-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    #intro-text { color: #c9d1d9; font-size: 18px; max-width: 600px; text-align: center; line-height: 1.8; }
+    .intro-btn { margin-top: 24px; background: #e74c3c; color: #fff; border: none; padding: 12px 32px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="logo">MAYDAY SURVIVAL</div>
+  <div class="subtitle">Przetrwaj 50 dni w lesie</div>
+  <div class="form-card">
+    <input id="login-user" placeholder="Nazwa użytkownika" />
+    <input id="login-pass" type="password" placeholder="Hasło" />
+    <div id="login-error" class="error"></div>
+    <button class="btn" id="login-btn">Zaloguj się</button>
+    <button class="btn btn-secondary" id="register-btn">Zarejestruj się</button>
+  </div>
+</div>
+
+<div id="server-screen" style="display:none">
+  <div class="logo" style="font-size: 28px;">WYBIERZ SERWER</div>
+  <div id="server-list" style="margin-top: 24px;"></div>
+  <button class="btn btn-secondary" style="width:200px;margin-top:16px" id="refresh-btn">Odśwież</button>
+  <button class="btn btn-secondary" style="width:200px;margin-top:8px" id="logout-btn">Wyloguj</button>
+</div>
+
+<canvas id="game-canvas" style="display:none"></canvas>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="day-info">
+    <div id="day-num">Dzień 1</div>
+    <div id="time-label">Dzień</div>
+  </div>
+  <div id="stats">
+    <div class="stat-bar"><span class="stat-label">HP</span><div class="stat-track"><div class="stat-fill hp-fill" id="hp-bar" style="width:100%"></div></div></div>
+    <div class="stat-bar"><span class="stat-label">Głód</span><div class="stat-track"><div class="stat-fill hunger-fill" id="hunger-bar" style="width:100%"></div></div></div>
+    <div class="stat-bar"><span class="stat-label">Energia</span><div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-bar" style="width:100%"></div></div></div>
+    <div class="stat-bar"><span class="stat-label">Temp</span><div class="stat-track"><div class="stat-fill temp-fill" id="temp-bar" style="width:80%"></div></div></div>
+  </div>
+  <div id="hotbar"></div>
+  <div id="chat">
+    <div id="chat-messages"></div>
+    <input id="chat-input" placeholder="Napisz wiadomość..." />
+  </div>
+  <div id="crafting-menu">
+    <h2>Crafting</h2>
+    <div id="craft-list"></div>
+  </div>
+</div>
+
+<div id="intro-overlay">
+  <div id="intro-text"></div>
+  <button class="intro-btn" id="intro-btn">Rozpocznij</button>
+</div>
+
+<script src="./game.js"></script>
+</body>
+</html>

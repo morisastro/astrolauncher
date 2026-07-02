@@ -2,17 +2,5 @@
   "name": "astro-launcher",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "packages/backend",
-    "packages/launcher",
-    "packages/discord-bot"
-  ],
-  "scripts": {
-    "dev:backend": "npm run dev -w packages/backend",
-    "dev:launcher": "npm run dev -w packages/launcher",
-    "build:backend": "npm run build -w packages/backend",
-    "build:launcher": "npm run build -w packages/launcher",
-    "vault:create": "npm run vault:create -w packages/backend",
-    "vault:view": "npm run vault:view -w packages/backend"
-  }
+  "workspaces": ["packages/backend", "packages/game-server", "packages/game-client"]
 }
