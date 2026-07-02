@@ -31,6 +31,8 @@ let menuOpen = false;
 let equippedItem = null;
 let textures = {};
 let inGame = false;
+let isDead = false;
+let respawnTimer = 0;
 
 // === PROCEDURAL TEXTURES ===
 function makeTexture(size, drawFn) {
@@ -138,17 +140,13 @@ function showMainMenu() {
       <div style="font-size:13px;color:#8b949e;margin-top:4px">Rola: ${user.role}</div>
     </div>
     <button class="btn" id="play-btn" style="font-size:18px;padding:16px;margin-bottom:12px">▶ ZAGRAJ</button>
-    <button class="btn btn-secondary" id="invite-btn" style="margin-bottom:12px">📨 Zaproś znajomych</button>
+    <button class="btn btn-secondary" id="invite-btn" style="margin-bottom:12px">📨 Partia — Zaproś znajomych</button>
     <button class="btn btn-secondary" id="logout-btn">Wyloguj</button>
-    <div id="invite-info" style="margin-top:16px;font-size:12px;color:#8b949e;text-align:center;display:none">
-      Serwer: <strong>${GAME_HOST}:${GAME_PORT}</strong><br>
-      Podaj znajomym ten adres!
-    </div>
   `;
   document.getElementById('play-btn').onclick = () => connectToServer(GAME_HOST, GAME_PORT);
   document.getElementById('invite-btn').onclick = () => {
-    const info = document.getElementById('invite-info');
-    info.style.display = info.style.display === 'none' ? 'block' : 'none';
+    document.getElementById('server-screen').style.display = 'none';
+    document.getElementById('party-screen').style.display = 'flex';
   };
   document.getElementById('logout-btn').onclick = () => {
     localStorage.removeItem('mayday_token');
@@ -396,16 +394,24 @@ function spawnNPCMesh(data) {
 // === INPUT ===
 function setupInput() {
   document.addEventListener('keydown', (e) => {
+    // ESC — natychmiastowe, bez opóźnienia
     if (e.code === 'Escape') {
-      if (chatOpen) { chatOpen = false; document.getElementById('chat-input').style.display = 'none'; }
-      else if (document.getElementById('crafting-menu').style.display === 'block') {
+      e.preventDefault();
+      if (chatOpen) {
+        chatOpen = false;
+        document.getElementById('chat-input').style.display = 'none';
+        return;
+      }
+      if (document.getElementById('crafting-menu').style.display === 'block') {
         document.getElementById('crafting-menu').style.display = 'none';
-        renderer.domElement.requestPointerLock();
-      } else { togglePauseMenu(); }
+        if (!menuOpen) renderer.domElement.requestPointerLock();
+        return;
+      }
+      togglePauseMenu();
       return;
     }
     
-    if (menuOpen || chatOpen) return;
+    if (menuOpen || chatOpen || isDead) return;
     
     keys[e.code] = true;
     if (e.code === 'KeyT') {
@@ -498,20 +504,70 @@ function setupInput() {
       require('electron').ipcRenderer.send('quit-app');
     }
   };
+  
+  // Party screen buttons
+  document.getElementById('party-close-btn').onclick = () => {
+    document.getElementById('party-screen').style.display = 'none';
+    document.getElementById('server-screen').style.display = 'flex';
+  };
+  document.getElementById('party-send-btn').onclick = async () => {
+    const input = document.getElementById('party-invite-input');
+    const username = input.value.trim();
+    if (!username) return;
+    
+    // Copy server address to clipboard
+    const addr = `${GAME_HOST}:${GAME_PORT}`;
+    await navigator.clipboard.writeText(`Dołącz do Mayday Survival! Serwer: ${addr}`);
+    
+    // Add to party members list
+    const members = document.getElementById('party-members');
+    const div = document.createElement('div');
+    div.innerHTML = `👤 <strong>${username}</strong> <span style="color:#8b949e">(zaproszony)</span>`;
+    members.appendChild(div);
+    
+    input.value = '';
+    alert(`Zaproszenie wysłane do: ${username}\n\nAdres serwera skopiowany do schowka!\nPodaj znajomemu: ${addr}`);
+  };
 }
 
 // === PAUSE MENU ===
 function togglePauseMenu() {
   const menu = document.getElementById('pause-menu');
-  if (menu.style.display === 'block') {
+  if (menuOpen) {
     menu.style.display = 'none';
     menuOpen = false;
-    renderer.domElement.requestPointerLock();
+    if (!isDead) renderer.domElement.requestPointerLock();
   } else {
-    document.exitPointerLock();
-    menu.style.display = 'block';
+    if (document.pointerLockElement) document.exitPointerLock();
+    menu.style.display = 'flex';
     menuOpen = true;
   }
+}
+
+// === DEATH SCREEN ===
+function showDeathScreen() {
+  isDead = true;
+  keys['KeyW'] = keys['KeyS'] = keys['KeyA'] = keys['KeyD'] = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const overlay = document.getElementById('death-screen');
+  overlay.style.display = 'flex';
+  respawnTimer = 5;
+  const timerEl = document.getElementById('respawn-timer');
+  const interval = setInterval(() => {
+    respawnTimer--;
+    if (respawnTimer <= 0) {
+      timerEl.textContent = 'Odradzanie...';
+      clearInterval(interval);
+    } else {
+      timerEl.textContent = `Odrodzisz się za ${respawnTimer}s`;
+    }
+  }, 1000);
+}
+
+function hideDeathScreen() {
+  isDead = false;
+  document.getElementById('death-screen').style.display = 'none';
+  renderer.domElement.requestPointerLock();
 }
 
 // === CRAFTING ===
@@ -560,100 +616,16 @@ function handleMessage(msg) {
       break;
     case 'state':
       for (const p of msg.players) {
-        if (p.id === myPlayerId) { hp = p.hp; hunger = p.hunger; stamina = p.stamina || stamina; updateHUD(); }
-        else {
-          if (!meshes.players.has(p.id)) spawnPlayerMesh(p);
-          const m = meshes.players.get(p.id);
-          if (m) { m.position.x = p.x; m.position.z = p.z; m.position.y = getTerrainHeight(p.x, p.z); m.rotation.y = p.ry; }
-        }
-      }
-      for (const [id, m] of meshes.players) { if (!msg.players.find(p => p.id === id)) { scene.remove(m); meshes.players.delete(id); } }
-      for (const m of msg.monsters) {
-        if (!meshes.monsters.has(m.id)) spawnMonsterMesh(m);
-        const mesh = meshes.monsters.get(m.id);
-        if (mesh) { mesh.position.x = m.x; mesh.position.z = m.z; mesh.position.y = getTerrainHeight(m.x, m.z); }
-      }
-      for (const [id, m] of meshes.monsters) { if (!msg.monsters.find(m => m.id === id)) { scene.remove(m); meshes.monsters.delete(id); } }
-      if (msg.day !== day) { day = msg.day; updateHUD(); }
-      if (msg.isNight !== isNight) { isNight = msg.isNight; updateDayNight(); }
-      break;
-    case 'inventory': inventory = msg.items; updateHotbar(); break;
-    case 'object_destroyed':
-      ['trees', 'rocks'].forEach(k => { const m = meshes[k].get(msg.id); if (m) { scene.remove(m); meshes[k].delete(msg.id); } });
-      break;
-    case 'structure_built': spawnStructure(msg.structure); break;
-    case 'monster_killed': const mm = meshes.monsters.get(msg.id); if (mm) { scene.remove(mm); meshes.monsters.delete(msg.id); } addChat('SYSTEM', `${msg.killer} zabił potwora!`); break;
-    case 'join': addChat('SYSTEM', `${msg.username} dołączył`); break;
-    case 'leave': const pm = meshes.players.get(msg.id); if (pm) { scene.remove(pm); meshes.players.delete(msg.id); } break;
-    case 'chat': addChat(msg.username, msg.message); break;
-    case 'newday': day = msg.day; addChat('SYSTEM', `Dzień ${day}!`); break;
-    case 'night': isNight = true; updateDayNight(); addChat('SYSTEM', 'Noc nadchodzi...'); break;
-    case 'day': isNight = false; updateDayNight(); addChat('SYSTEM', 'Świt.'); break;
-    case 'death': addChat('SYSTEM', msg.playerId === myPlayerId ? 'Umarłeś!' : 'Gracz zginął'); break;
-    case 'intro_start': showIntro(); break;
-    case 'npc_kidnapped':
-      const npcMesh = meshes.npcs.get(msg.npcId);
-      if (npcMesh) {
-        const startY = npcMesh.position.y;
-        const startTime = Date.now();
-        const anim = () => {
-          const e = (Date.now() - startTime) / 1000;
-          if (e > 2) { scene.remove(npcMesh); meshes.npcs.delete(msg.npcId); return; }
-          npcMesh.position.y = startY + e * 5;
-          npcMesh.position.x += 0.1;
-          npcMesh.rotation.z = e * 2;
-          requestAnimationFrame(anim);
-        };
-        anim();
-      }
-      addChat('YETI', `*${msg.name} został porwany przez Yeti!*`);
-      break;
-    case 'victory': alert('ZWYCIĘSTWO! Przetrwaliście 50 dni!'); break;
-  }
-}
-
-// === INTRO ===
-function showIntro() {
-  const overlay = document.getElementById('intro-overlay');
-  const text = document.getElementById('intro-text');
-  overlay.style.display = 'flex';
-  const lines = ['Budzisz się w nieznanym lesie.', 'Dwóch przewodników prowadzi grupę przez gęsty mrok.', '...', 'Przewodnik: "Trzymajcie się razem."', '...', '*NAGLE YETI WYSKAKUJE Z ZAROSLI*', '*CHWYTA PRZEWODNIKA I ZNIKA*', '...', 'Przewodnik #2: "MUSIMY PRZETRWAĆ. 50 DNI."', 'Zbieraj drewno, kamień. Buduj schron. Walcz.', 'Yeti cię obserwuje...'];
-  let i = 0; text.innerHTML = '';
-  const interval = setInterval(() => { if (i >= lines.length) { clearInterval(interval); return; } text.innerHTML += lines[i] + '<br><br>'; i++; }, 1500);
-  document.getElementById('intro-btn').onclick = () => { overlay.style.display = 'none'; ws.send(JSON.stringify({ type: 'intro_complete' })); renderer.domElement.requestPointerLock(); };
-}
-
-// === HUD ===
-function updateHUD() {
-  document.getElementById('hp-bar').style.width = Math.max(0, hp) + '%';
-  document.getElementById('hunger-bar').style.width = Math.max(0, hunger) + '%';
-  document.getElementById('stamina-bar').style.width = Math.max(0, stamina) + '%';
-  document.getElementById('temp-bar').style.width = Math.max(0, (temperature - 30) / 10 * 100) + '%';
-  document.getElementById('day-num').textContent = `Dzień ${day}`;
-  document.getElementById('time-label').textContent = isNight ? 'Noc ☾' : 'Dzień ☀';
-}
-
-function updateHotbar() {
-  const items = Object.entries(inventory).filter(([k, v]) => v > 0).slice(0, 5);
-  document.getElementById('hotbar').innerHTML = items.map(([item, qty], i) =>
-    `<div class="slot ${i === equippedSlot ? 'active' : ''}" onclick="selectSlot(${i})">${item.slice(0,4)}<span class="qty">${qty}</span></div>`).join('');
-  if (items[equippedSlot]) equippedItem = items[equippedSlot][0];
-}
-
-window.selectSlot = (i) => {
-  equippedSlot = i; updateHotbar();
-  const items = Object.entries(inventory).filter(([k, v]) => v > 0);
-  if (items[i]) ws.send(JSON.stringify({ type: 'action', action: 'equip', item: items[i][0] }));
-};
-
-function updateDayNight() {
-  if (isNight) {
-    scene.background = new THREE.Color(0x05050a);
-    scene.fog.color.setHex(0x05050a);
-    scene.fog.near = 8; scene.fog.far = 35;
-    window.sunLight.intensity = 0.15;
-    window.sunLight.color.setHex(0x3355aa);
-  } else {
+        if (p.id === myPlayerId) {
+          hp = p.hp; hunger = p.hunger; stamina = p.stamina || stamina;
+          updateHUD();
+          // Handle death state
+          if (!p.alive && !isDead) {
+            showDeathScreen();
+          } else if (p.alive && isDead) {
+            hideDeathScreen();
+          }
+        } else {
     scene.background = new THREE.Color(0x4a6a9a);
     scene.fog.color.setHex(0x4a6a9a);
     scene.fog.near = 30; scene.fog.far = 120;
@@ -678,7 +650,7 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
   
-  if (myPlayerId && pointerLocked && !menuOpen && ws && ws.readyState === WebSocket.OPEN) {
+  if (myPlayerId && pointerLocked && !menuOpen && !isDead && ws && ws.readyState === WebSocket.OPEN) {
     const speed = (keys['ShiftLeft'] && stamina > 0) ? 8 : 5;
     if (keys['ShiftLeft'] && (keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'])) stamina = Math.max(0, stamina - 15 * dt);
     
