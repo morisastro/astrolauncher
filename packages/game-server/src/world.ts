@@ -62,12 +62,17 @@ export function generateWorld(): WorldData {
 
   const half = WORLD_SIZE / 2;
   const step = 8;
+  const clearRadius = 12;
 
   for (let x = -half; x < half; x += step) {
     for (let z = -half; z < half; z += step) {
       const height = getTerrainHeight(x, z);
       const biome = getBiome(x, z);
       const r = Math.random();
+
+      // Keep spawn area clear
+      const distFromSpawn = Math.sqrt(x * x + z * z);
+      if (distFromSpawn < clearRadius) continue;
 
       if (height > -2 && height < 15) {
         if (r < 0.25) {

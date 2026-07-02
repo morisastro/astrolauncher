@@ -166,6 +166,39 @@
   <button class="intro-btn" id="intro-btn">Rozpocznij</button>
 </div>
 
+<div id="pause-menu" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:200;flex-direction:column;align-items:center;justify-content:center">
+  <div style="font-size:32px;font-weight:900;color:#e74c3c;margin-bottom:32px;text-shadow:0 0 20px rgba(231,76,60,0.5)">PAUZA</div>
+  
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:400px;margin-bottom:16px">
+    <h3 style="font-size:16px;color:#e74c3c;margin-bottom:12px">⌨ Sterowanie</h3>
+    <div style="font-size:13px;color:#c9d1d9;line-height:2">
+      <div><strong>WASD</strong> — Ruch</div>
+      <div><strong>Spacja</strong> — Skok</div>
+      <div><strong>Shift</strong> — Bieg</div>
+      <div><strong>Mysz</strong> — Rozglądanie</div>
+      <div><strong>LPM</strong> — Kopanie / Atak / Budowanie</div>
+      <div><strong>PPM</strong> — Strzał z łuku</div>
+      <div><strong>1-5</strong> — Wybór slotu</div>
+      <div><strong>C</strong> — Crafting</div>
+      <div><strong>T</strong> — Chat</div>
+      <div><strong>ESC</strong> — Menu pauzy</div>
+    </div>
+  </div>
+  
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:400px;margin-bottom:24px">
+    <h3 style="font-size:16px;color:#e74c3c;margin-bottom:12px">⚙ Ustawienia</h3>
+    <div style="font-size:13px;color:#8b949e">
+      <div style="margin-bottom:8px">Czułość myszy: <span style="color:#c9d1d9">0.002</span></div>
+      <div style="margin-bottom:8px">FOV: <span style="color:#c9d1d9">75°</span></div>
+      <div style="margin-bottom:8px">Dystans mgły: <span style="color:#c9d1d9">120</span></div>
+      <div>Głośność: <span style="color:#c9d1d9">100%</span></div>
+    </div>
+  </div>
+  
+  <button class="btn" id="resume-btn" style="width:400px;margin-bottom:8px">▶ Wznów grę</button>
+  <button class="btn btn-secondary" id="exit-btn" style="width:400px">✕ Wyjdź z gry</button>
+</div>
+
 <script src="./game.js"></script>
 </body>
 </html>

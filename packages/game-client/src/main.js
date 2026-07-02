@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { join } = require('node:path');
 
 function createWindow() {
@@ -22,6 +22,10 @@ function createWindow() {
     win.webContents.openDevTools();
   }
 }
+
+ipcMain.on('quit-app', () => {
+  app.quit();
+});
 
 app.whenReady().then(() => {
   createWindow();
