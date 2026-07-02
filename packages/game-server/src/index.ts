@@ -289,14 +289,35 @@ wss.on('connection', (ws, req) => {
       spawnPlayer(player);
       state.players.set(playerId, player);
 
+      // Only send trees/rocks near spawn point (within 60 units)
+      const spawnX = player.x;
+      const spawnZ = player.z;
+      const nearbyTrees = state.world.trees.filter(t => {
+        const dx = t.x - spawnX;
+        const dz = t.z - spawnZ;
+        return dx * dx + dz * dz < 3600;
+      }).map(t => ({ ...t, y: getTerrainHeight(t.x, t.z) }));
+
+      const nearbyRocks = state.world.rocks.filter(r => {
+        const dx = r.x - spawnX;
+        const dz = r.z - spawnZ;
+        return dx * dx + dz * dz < 3600;
+      }).map(r => ({ ...r, y: getTerrainHeight(r.x, r.z) }));
+
+      const nearbyBushes = state.world.bushes.filter(b => {
+        const dx = b.x - spawnX;
+        const dz = b.z - spawnZ;
+        return dx * dx + dz * dz < 3600;
+      });
+
       send(ws, {
         type: 'init',
         id: playerId,
         username,
         world: {
-          trees: state.world.trees,
-          rocks: state.world.rocks,
-          bushes: state.world.bushes,
+          trees: nearbyTrees,
+          rocks: nearbyRocks,
+          bushes: nearbyBushes,
           spawnPoint: state.world.spawnPoint,
         },
         structures: Array.from(state.structures.values()),

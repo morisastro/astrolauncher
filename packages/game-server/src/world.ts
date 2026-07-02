@@ -1,6 +1,6 @@
 import { createNoise2D } from 'simplex-noise';
 
-export const WORLD_SIZE = 256;
+export const WORLD_SIZE = 128;
 export const SEED = 12345;
 
 const noise2D = createNoise2D(() => SEED);
@@ -38,17 +38,17 @@ export interface WorldData {
 }
 
 export function getTerrainHeight(x: number, z: number): number {
-  const scale1 = 0.015;
-  const scale2 = 0.04;
-  const h1 = noise2D(x * scale1, z * scale1) * 12;
-  const h2 = noise2D2(x * scale2, z * scale2) * 4;
+  const s1 = 0.015;
+  const s2 = 0.04;
+  const h1 = noise2D(x * s1, z * s1) * 12;
+  const h2 = noise2D2(x * s2, z * s2) * 4;
   return h1 + h2;
 }
 
 export function getBiome(x: number, z: number): 'forest' | 'mountain' | 'snow' {
   const dist = Math.sqrt(x * x + z * z);
-  if (dist < 80) return 'forest';
-  if (dist < 160) return 'mountain';
+  if (dist < 50) return 'forest';
+  if (dist < 90) return 'mountain';
   return 'snow';
 }
 
@@ -60,18 +60,21 @@ export function generateWorld(): WorldData {
   const rocks: Rock[] = [];
   const bushes: Bush[] = [];
 
-  for (let x = -WORLD_SIZE / 2; x < WORLD_SIZE / 2; x += 6) {
-    for (let z = -WORLD_SIZE / 2; z < WORLD_SIZE / 2; z += 6) {
+  const half = WORLD_SIZE / 2;
+  const step = 8;
+
+  for (let x = -half; x < half; x += step) {
+    for (let z = -half; z < half; z += step) {
       const height = getTerrainHeight(x, z);
       const biome = getBiome(x, z);
-      const rand = (noise2D(x * 0.3, z * 0.3) + 1) / 2;
+      const r = Math.random();
 
       if (height > -2 && height < 15) {
-        if (rand > 0.7 && Math.random() > 0.6) {
-          const treeType = biome === 'snow' ? 'dead' : biome === 'mountain' ? 'pine' : Math.random() > 0.5 ? 'pine' : 'birch';
+        if (r < 0.25) {
+          const treeType = biome === 'snow' ? 'dead' : biome === 'mountain' ? 'pine' : r > 0.12 ? 'pine' : 'birch';
           trees.push({
-            x: x + (Math.random() - 0.5) * 4,
-            z: z + (Math.random() - 0.5) * 4,
+            x: x + (Math.random() - 0.5) * 5,
+            z: z + (Math.random() - 0.5) * 5,
             type: treeType,
             scale: 0.8 + Math.random() * 0.6,
             hp: 3,
@@ -79,20 +82,20 @@ export function generateWorld(): WorldData {
           });
         }
 
-        if (rand > 0.8 && Math.random() > 0.85) {
+        if (r > 0.85 && r < 0.92) {
           rocks.push({
-            x: x + (Math.random() - 0.5) * 4,
-            z: z + (Math.random() - 0.5) * 4,
+            x: x + (Math.random() - 0.5) * 5,
+            z: z + (Math.random() - 0.5) * 5,
             scale: 0.5 + Math.random() * 1,
             hp: 5,
             id: nextId(),
           });
         }
 
-        if (biome === 'forest' && Math.random() > 0.95) {
+        if (biome === 'forest' && r > 0.92) {
           bushes.push({
-            x: x + (Math.random() - 0.5) * 4,
-            z: z + (Math.random() - 0.5) * 4,
+            x: x + (Math.random() - 0.5) * 5,
+            z: z + (Math.random() - 0.5) * 5,
             id: nextId(),
             berries: Math.floor(Math.random() * 3) + 1,
           });
@@ -101,6 +104,7 @@ export function generateWorld(): WorldData {
     }
   }
 
+  console.log(`World generated: ${trees.length} trees, ${rocks.length} rocks, ${bushes.length} bushes`);
   return { trees, rocks, bushes, spawnPoint: { x: 0, z: 0 } };
 }
 
@@ -128,22 +132,7 @@ export interface Monster {
   lastAttack: number;
 }
 
-export interface InventoryItem {
-  slot: number;
-  type: string;
-  quantity: number;
-  data?: any;
-}
-
-export interface CraftingRecipe {
-  id: string;
-  output: string;
-  outputName: string;
-  ingredients: { type: string; quantity: number }[];
-  category: 'tools' | 'weapons' | 'building' | 'food';
-}
-
-export const RECIPES: CraftingRecipe[] = [
+export const RECIPES = [
   { id: 'axe', output: 'axe', outputName: 'Stone Axe', ingredients: [{ type: 'wood', quantity: 3 }, { type: 'stone', quantity: 2 }], category: 'tools' },
   { id: 'pickaxe', output: 'pickaxe', outputName: 'Stone Pickaxe', ingredients: [{ type: 'wood', quantity: 3 }, { type: 'stone', quantity: 3 }], category: 'tools' },
   { id: 'sword', output: 'sword', outputName: 'Stone Sword', ingredients: [{ type: 'wood', quantity: 2 }, { type: 'stone', quantity: 4 }], category: 'weapons' },
