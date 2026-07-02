@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import type { PrismaClient } from '@prisma/client';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { z } from 'zod';

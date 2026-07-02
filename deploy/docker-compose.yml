@@ -28,7 +28,6 @@ services:
     container_name: astro-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
       - "3001:3001"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
