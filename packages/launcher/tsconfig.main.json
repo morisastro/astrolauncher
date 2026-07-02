@@ -5,7 +5,10 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "strict": false,
+    "outDir": "dist/main",
+    "rootDir": "src/main",
+    "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "files": []
+  "include": ["src/main/**/*"]
 }

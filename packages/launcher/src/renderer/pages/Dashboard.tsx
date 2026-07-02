@@ -65,6 +65,7 @@ export function DashboardPage() {
   const [updateProgress, setUpdateProgress] = useState(0);
   const [mcProfile, setMcProfile] = useState<McProfile | null>(null);
   const [mcLoginBusy, setMcLoginBusy] = useState(false);
+  const [userCode, setUserCode] = useState<string | null>(null);
   const [builtinMod, setBuiltinMod] = useState<any>(null);
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export function DashboardPage() {
 
   function setupListeners() {
     if (!window.astro) return;
+    window.astro.mc.onUserCode((data) => setUserCode(data.userCode));
     window.astro.mc.onProgress((data) => setMcProgress(data));
     window.astro.mc.onOutput((line) => setMcLog(prev => [...prev.slice(-199), `[MC] ${line}`]));
     window.astro.mc.onError((line) => setMcLog(prev => [...prev.slice(-199), `[ERR] ${line}`]));
@@ -115,9 +117,11 @@ export function DashboardPage() {
   async function handleMcLogin() {
     if (!window.astro) return;
     setMcLoginBusy(true);
+    setUserCode(null);
     try {
       const profile = await window.astro.mc.login();
       setMcProfile(profile);
+      setUserCode(null);
       setMcLog(prev => [...prev, `[AUTH] Logged in as ${profile.username} (${profile.uuid})`]);
     } catch (err: any) {
       alert('Login failed: ' + err.message);
@@ -282,7 +286,14 @@ export function DashboardPage() {
                 </>
               ) : (
                 <>
-                  <p className="empty">Nie jesteś zalogowany w Minecraft</p>
+                  {userCode && (
+                    <div className="user-code-display">
+                      <p>Wpisz ten kod na stronie Microsoft:</p>
+                      <h2 className="user-code">{userCode}</h2>
+                      <small>Strona została otwarta w przeglądarce</small>
+                    </div>
+                  )}
+                  <p className="empty">{userCode ? 'Oczekiwanie na logowanie...' : 'Nie jesteś zalogowany w Minecraft'}</p>
                   <button className="btn btn-green" onClick={handleMcLogin} disabled={mcLoginBusy}>{mcLoginBusy ? 'Logging in...' : 'Login with Microsoft'}</button>
                 </>
               )}

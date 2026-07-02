@@ -8,7 +8,7 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build:vite": "vite build",
-    "build:electron": "tsc -p tsconfig.json && tsc -p tsconfig.preload.json",
+    "build:electron": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "build": "npm run build:vite && npm run build:electron",
     "start": "electron .",
     "dist": "npm run build && electron-builder"

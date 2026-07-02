@@ -1,5 +1,6 @@
 interface AstroMc {
   login: () => Promise<{ mcToken: string; uuid: string; username: string; expiresAt: number }>;
+  onUserCode: (cb: (data: { userCode: string; verificationUri: string; expiresIn: number }) => void) => void;
   download: (version: string) => Promise<boolean>;
   launch: (version: string, javaPath?: string, mcProfile?: { uuid: string; username: string; mcToken: string }) => Promise<boolean>;
   kill: () => Promise<boolean>;

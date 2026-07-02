@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('astro', {
 
   mc: {
     login: () => ipcRenderer.invoke('mc:login'),
+    onUserCode: (cb) => {
+      ipcRenderer.on('mc:usercode', (_e, data) => cb(data));
+    },
     download: (version) => ipcRenderer.invoke('mc:download', version),
     launch: (version, javaPath, mcProfile) => ipcRenderer.invoke('mc:launch', version, javaPath, mcProfile),
     kill: () => ipcRenderer.invoke('mc:kill'),
