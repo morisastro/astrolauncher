@@ -24,11 +24,23 @@ interface Player {
   lastAction: number;
 }
 
+interface NPC {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  z: number;
+  role: 'guide1' | 'guide2';
+  alive: boolean;
+  kidnapped: boolean;
+}
+
 interface GameState {
   players: Map<string, Player>;
   world: WorldData;
   structures: Map<string, BuiltStructure>;
   monsters: Map<string, Monster>;
+  npcs: Map<string, NPC>;
   day: number;
   timeOfDay: number;
   isNight: boolean;
@@ -41,12 +53,45 @@ const state: GameState = {
   world: generateWorld(),
   structures: new Map(),
   monsters: new Map(),
+  npcs: new Map(),
   day: 1,
   timeOfDay: 0.3,
   isNight: false,
   gameStarted: false,
   introComplete: false,
 };
+
+// Spawn campfire at spawn point
+const campfireId = `s_initial_campfire`;
+state.structures.set(campfireId, {
+  id: campfireId,
+  type: 'campfire',
+  x: 0, y: getTerrainHeight(0, 0), z: 0,
+  rotation: 0,
+  ownerId: 'system',
+  hp: 999,
+});
+
+// Spawn NPC guides
+const guide1Id = 'npc_guide1';
+state.npcs.set(guide1Id, {
+  id: guide1Id,
+  name: 'Przewodnik Marek',
+  x: 3, y: getTerrainHeight(3, 0), z: 0,
+  role: 'guide1',
+  alive: true,
+  kidnapped: false,
+});
+
+const guide2Id = 'npc_guide2';
+state.npcs.set(guide2Id, {
+  id: guide2Id,
+  name: 'Przewodnik Anna',
+  x: -3, y: getTerrainHeight(-3, 0), z: 0,
+  role: 'guide2',
+  alive: true,
+  kidnapped: false,
+});
 
 let playerCounter = 0;
 let monsterCounter = 0;
@@ -289,25 +334,25 @@ wss.on('connection', (ws, req) => {
       spawnPlayer(player);
       state.players.set(playerId, player);
 
-      // Only send trees/rocks near spawn point (within 60 units)
+      // Only send trees/rocks near spawn point (within 120 units)
       const spawnX = player.x;
       const spawnZ = player.z;
       const nearbyTrees = state.world.trees.filter(t => {
         const dx = t.x - spawnX;
         const dz = t.z - spawnZ;
-        return dx * dx + dz * dz < 3600;
+        return dx * dx + dz * dz < 14400;
       }).map(t => ({ ...t, y: getTerrainHeight(t.x, t.z) }));
 
       const nearbyRocks = state.world.rocks.filter(r => {
         const dx = r.x - spawnX;
         const dz = r.z - spawnZ;
-        return dx * dx + dz * dz < 3600;
+        return dx * dx + dz * dz < 14400;
       }).map(r => ({ ...r, y: getTerrainHeight(r.x, r.z) }));
 
       const nearbyBushes = state.world.bushes.filter(b => {
         const dx = b.x - spawnX;
         const dz = b.z - spawnZ;
-        return dx * dx + dz * dz < 3600;
+        return dx * dx + dz * dz < 14400;
       });
 
       send(ws, {
@@ -321,6 +366,7 @@ wss.on('connection', (ws, req) => {
           spawnPoint: state.world.spawnPoint,
         },
         structures: Array.from(state.structures.values()),
+        npcs: Array.from(state.npcs.values()),
         recipes: RECIPES,
         day: state.day,
         isNight: state.isNight,
@@ -333,6 +379,17 @@ wss.on('connection', (ws, req) => {
       if (state.players.size === 1 && !state.gameStarted) {
         state.gameStarted = true;
         broadcast({ type: 'intro_start' });
+        
+        // Schedule Yeti kidnapping after 15 seconds
+        setTimeout(() => {
+          const guide1 = state.npcs.get('npc_guide1');
+          if (guide1 && guide1.alive) {
+            guide1.kidnapped = true;
+            guide1.alive = false;
+            broadcast({ type: 'npc_kidnapped', npcId: 'npc_guide1', name: guide1.name });
+            console.log('[INTRO] Guide1 kidnapped by Yeti!');
+          }
+        }, 15000);
       }
     }
 

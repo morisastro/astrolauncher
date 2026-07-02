@@ -1,7 +1,7 @@
 const THREE = require('three');
 
 // === CONFIG ===
-const API_URL = 'http://api.morisastro.pl:3001';
+const API_URL = 'http://localhost:3093';
 const LAUNCHER_KEY = '583582787f59a73a972be0367615f0fbcd1fc1569b893529bb710ebe25659a7d';
 
 // === STATE ===
@@ -18,7 +18,7 @@ let terrainMesh, waterMesh;
 let playerVelocity = new THREE.Vector3();
 let playerOnGround = false;
 const keys = {};
-const meshes = { trees: new Map(), rocks: new Map(), structures: new Map(), monsters: new Map(), players: new Map() };
+const meshes = { trees: new Map(), rocks: new Map(), structures: new Map(), monsters: new Map(), players: new Map(), npcs: new Map() };
 
 let hp = 100, hunger = 100, stamina = 100, temperature = 37;
 let day = 1, isNight = false;
@@ -300,7 +300,8 @@ function initGame() {
   scene.fog = new THREE.Fog(0x4a6a9a, 30, 120);
   
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
-  camera.position.set(0, 10, 0);
+  camera.rotation.order = 'YXZ';
+  camera.position.set(0, 12, 5);
   
   renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -558,6 +559,50 @@ function spawnPlayerMesh(data) {
   meshes.players.set(data.id, group);
 }
 
+function spawnNPCMesh(data) {
+  const height = data.y !== undefined ? data.y : getTerrainHeight(data.x, data.z);
+  const group = new THREE.Group();
+  
+  // Body - different colors for guide1 (green) and guide2 (orange)
+  const bodyColor = data.role === 'guide1' ? 0x2ecc71 : 0xe67e22;
+  const bodyGeom = new THREE.CapsuleGeometry(0.4, 1.2, 4, 8);
+  const mat = new THREE.MeshStandardMaterial({ color: bodyColor, flatShading: true });
+  const body = new THREE.Mesh(bodyGeom, mat);
+  body.position.y = 1;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Head
+  const headGeom = new THREE.SphereGeometry(0.35, 8, 8);
+  const head = new THREE.Mesh(headGeom, new THREE.MeshStandardMaterial({ color: 0xddbb88, flatShading: true }));
+  head.position.y = 2;
+  head.castShadow = true;
+  group.add(head);
+  
+  // Name tag
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = data.role === 'guide1' ? '#2ecc71' : '#e67e22';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(data.name, 128, 40);
+  const texture = new THREE.CanvasTexture(canvas);
+  const tagMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+  const tag = new THREE.Sprite(tagMat);
+  tag.position.y = 3;
+  tag.scale.set(2.5, 0.6, 1);
+  group.add(tag);
+  
+  group.position.set(data.x, height, data.z);
+  group.userData = { id: data.id, role: data.role };
+  scene.add(group);
+  meshes.npcs.set(data.id, group);
+}
+
 // === INPUT ===
 function setupInput() {
   document.addEventListener('keydown', (e) => {
@@ -712,8 +757,10 @@ function handleMessage(msg) {
       world.trees.forEach(spawnTree);
       world.rocks.forEach(spawnRock);
       (msg.structures || []).forEach(spawnStructure);
+      (msg.npcs || []).forEach(spawnNPCMesh);
       
-      camera.position.set(world.spawnPoint.x, getTerrainHeight(world.spawnPoint.x, world.spawnPoint.z) + 2, world.spawnPoint.z);
+      camera.position.set(world.spawnPoint.x, getTerrainHeight(world.spawnPoint.x, world.spawnPoint.z) + 2, world.spawnPoint.z + 3);
+      camera.rotation.y = Math.PI;
       
       if (!msg.introComplete) showIntro();
       break;
@@ -811,6 +858,29 @@ function handleMessage(msg) {
     
     case 'intro_start':
       showIntro();
+      break;
+    
+    case 'npc_kidnapped':
+      const npcMesh = meshes.npcs.get(msg.npcId);
+      if (npcMesh) {
+        // Animate NPC flying away (Yeti takes them)
+        const startY = npcMesh.position.y;
+        const startTime = Date.now();
+        const animateKidnap = () => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          if (elapsed > 2) {
+            scene.remove(npcMesh);
+            meshes.npcs.delete(msg.npcId);
+            return;
+          }
+          npcMesh.position.y = startY + elapsed * 5;
+          npcMesh.position.x += 0.1;
+          npcMesh.rotation.z = elapsed * 2;
+          requestAnimationFrame(animateKidnap);
+        };
+        animateKidnap();
+      }
+      addChat('YETI', `*AARGH! ${msg.name} został porwany przez Yeti!*`);
       break;
     
     case 'victory':
@@ -950,8 +1020,8 @@ function animate() {
       playerOnGround = true;
     }
     
-    camera.position.x = Math.max(-60, Math.min(60, camera.position.x));
-    camera.position.z = Math.max(-60, Math.min(60, camera.position.z));
+    camera.position.x = Math.max(-120, Math.min(120, camera.position.x));
+    camera.position.z = Math.max(-120, Math.min(120, camera.position.z));
     
     ws.send(JSON.stringify({
       type: 'move',
